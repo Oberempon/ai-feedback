@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Group 6 · Feedback Analytics</title>
+<meta name="description" content="Real-time AI-powered feedback analytics dashboard. Monitor sentiment and customer insights." />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+
+<style>
+    :root {
+        --void: #050b1e;
+        --panel: rgba(13, 21, 48, 0.6);
+        --panel-solid: #0c1430;
+        --card: rgba(18, 28, 58, 0.55);
+        --card-hover: rgba(24, 37, 74, 0.7);
+        --line: rgba(148, 163, 184, 0.14);
+        --line-strong: rgba(148, 163, 184, 0.24);
+        --glow-border: rgba(59, 130, 246, 0.45);
+
+        --cyan: #38bdf8;
+        --blue: #3b82f6;
+        --violet: #8b5cf6;
+        --amber: #fb923c;
+
+        --text-1: #f1f5f9;
+        --text-2: #a9b6cc;
+        --text-3: #6d7994;
+
+        --success: #34d399;
+        --success-bg: rgba(52, 211, 153, 0.12);
+        --warning: #fbbf24;
+        --warning-bg: rgba(251, 191, 36, 0.12);
+        --error: #f87171;
+        --error-bg: rgba(248, 113, 113, 0.12);
+        --mixed: #a78bfa;
+        --mixed-bg: rgba(167, 139, 250, 0.12);
+
+        --radius-sm: 8px;
+        --radius-md: 14px;
+        --radius-lg: 24px;
+        --radius-xl: 32px;
+        --radius-full: 999px;
+
+        --ease: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        background: var(--void);
+        color: var(--text-1);
+        min-height: 100vh;
+        position: relative;
+        overflow-x: hidden;
+        -webkit-font-smoothing: antialiased;
+    }
+
+    h1, h2, h3 { font-family: 'Space Grotesk', 'Inter', sans-serif; }
+
+    body::before, body::after {
+        content: '';
+        position: fixed;
+        border-radius: 50%;
+        filter: blur(110px);
+        z-index: 0;
+        pointer-events: none;
+    }
+    body::before {
+        width: 620px; height: 620px; top: -220px; left: -160px;
+        background: radial-gradient(circle, rgba(56, 189, 248, 0.28), transparent 70%);
+    }
+    body::after {
+        width: 700px; height: 700px; bottom: -260px; right: -200px;
+        background: radial-gradient(circle, rgba(139, 92, 246, 0.24), transparent 70%);
+    }
+
+    .page {
+        position: relative;
+        z-index: 1;
+        max-width: 1320px;
+        margin: 0 auto;
+        padding: 40px 20px 80px;
+    }
+
+    /* ============================================
+       GLOW FRAME
+       ============================================ */
+    .frame {
+        position: relative;
+        border-radius: var(--radius-xl);
+        border: 1px solid var(--glow-border);
+        background: linear-gradient(180deg, rgba(15, 23, 50, 0.7) 0%, rgba(8, 13, 32, 0.85) 100%);
+        box-shadow:
+            0 0 0 1px rgba(56, 189, 248, 0.08),
+            0 0 80px rgba(37, 99, 235, 0.22),
+            inset 0 1px 0 rgba(255, 255, 255, 0.04);
+        overflow: hidden;
+    }
+
+    .frame::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        padding: 1px;
+        background: linear-gradient(135deg, rgba(56, 189, 248, 0.55), transparent 30%, transparent 70%, rgba(139, 92, 246, 0.5));
+        -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+        -webkit-mask-composite: xor;
+        mask-composite: exclude;
+        pointer-events: none;
+    }
+
+    .frame .corner-glow {
+        position: absolute;
+        width: 260px; height: 260px;
+        border-radius: 50%;
+        filter: blur(70px);
+        opacity: 0.35;
+        pointer-events: none;
+    }
+    .corner-glow.tl { top: -80px; left: -60px; background: var(--cyan); }
+    .corner-glow.br { bottom: -100px; right: -60px; background: var(--violet); }
+
+    /* ============================================
+       NAV
+       ============================================ */
+    .nav {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 24px 40px;
+        border-bottom: 1px solid var(--line);
+        flex-wrap: wrap;
+        gap: 14px;
+    }
+
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; }
+    .brand .mark {
+        width: 34px; height: 34px; border-radius: 10px;
+        display: flex; align-items: center; justify-content: center;
+        background: linear-gradient(135deg, var(--cyan), var(--blue));
+        color: #04101f; font-size: 15px;
+        box-shadow: 0 0 18px rgba(56, 189, 248, 0.5);
+    }
+
+    .nav-right { display: flex; align-items: center; gap: 16px; }
+
+    .last-updated {
+        font-size: 12px;
+        color: var(--text-3);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .ghost-btn {
+        padding: 9px 18px;
+        border-radius: var(--radius-full);
+        border: 1px solid var(--line-strong);
+        color: var(--text-1);
+        background: transparent;
+        font-family: inherit;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all var(--ease);
+    }
+    .ghost-btn:hover { border-color: var(--cyan); box-shadow: 0 0 16px rgba(56, 189, 248, 0.25); }
+
+    .glow-btn {
+        display: flex; align-items: center; gap: 8px;
+        padding: 9px 20px;
+        border-radius: var(--radius-full);
+        border: none;
+        background: linear-gradient(120deg, var(--cyan), var(--blue));
+        color: #04101f;
+        font-family: inherit;
+        font-weight: 700;
+        font-size: 13px;
+        cursor: pointer;
+        box-shadow: 0 8px 24px rgba(37, 99, 235, 0.35);
+        transition: transform var(--ease), box-shadow var(--ease);
+    }
+    .glow-btn:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(37, 99, 235, 0.45); }
+    .glow-btn.loading .spinner { display: inline-block; animation: spin 0.8s linear infinite; }
+    .glow-btn .spinner { display: none; }
+    .glow-btn.loading .btn-text { display: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ============================================
+       HERO / PAGE HEADER
+       ============================================ */
+    .hero {
+        position: relative;
+        z-index: 2;
+        padding: 40px 40px 8px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: 20px;
+    }
+
+    .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 16px;
+        border-radius: var(--radius-full);
+        border: 1px solid rgba(56, 189, 248, 0.35);
+        background: rgba(56, 189, 248, 0.08);
+        color: var(--cyan);
+        font-size: 12px;
+        font-weight: 600;
+        margin-bottom: 16px;
+    }
+
+    .hero h1 { font-size: 30px; font-weight: 700; margin-bottom: 8px; }
+    .hero h1 .accent {
+        background: linear-gradient(120deg, var(--cyan), var(--blue) 60%, var(--violet));
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .hero p { font-size: 14px; color: var(--text-2); max-width: 460px; line-height: 1.6; }
+
+    .header-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+
+    /* ============================================
+       STATS GRID
+       ============================================ */
+    .stats-grid {
+        position: relative;
+        z-index: 2;
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+        padding: 24px 40px 8px;
+    }
+
+    .stat-card {
+        position: relative;
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--line);
+        background: var(--card);
+        padding: 22px 22px 20px;
+        transition: all var(--ease);
+    }
+
+    .stat-card:hover { transform: translateY(-3px); background: var(--card-hover); }
+
+    .stat-card .stat-icon {
+        width: 42px; height: 42px;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 17px;
+        margin-bottom: 14px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid var(--line-strong);
+        color: var(--cyan);
+        box-shadow: 0 0 20px rgba(56, 189, 248, 0.2);
+    }
+    .stat-card.tone-positive .stat-icon { color: var(--success); box-shadow: 0 0 20px rgba(52, 211, 153, 0.25); }
+    .stat-card.tone-neutral .stat-icon { color: var(--warning); box-shadow: 0 0 20px rgba(251, 191, 36, 0.25); }
+    .stat-card.tone-negative .stat-icon { color: var(--error); box-shadow: 0 0 20px rgba(248, 113, 113, 0.25); }
+
+    .stat-card .stat-label { font-size: 12px; font-weight: 600; color: var(--text-2); margin-bottom: 6px; letter-spacing: 0.2px; }
+    .stat-card .stat-number { font-size: 30px; font-weight: 700; color: var(--text-1); line-height: 1.1; }
+
+    .stat-card .stat-change {
+        display: inline-flex; align-items: center; gap: 6px;
+        font-size: 12px; font-weight: 700;
+        margin-top: 10px; padding: 3px 12px;
+        border-radius: var(--radius-full);
+    }
+    .stat-change.positive { color: var(--success); background: var(--success-bg); }
+    .stat-change.negative { color: var(--error); background: var(--error-bg); }
+    .stat-change.neutral { color: var(--warning); background: var(--warning-bg); }
+
+    .stat-card.loading .stat-number,
+    .stat-card.loading .stat-label {
+        display: inline-block;
+        background: rgba(255, 255, 255, 0.06);
+        border-radius: var(--radius-sm);
+        color: transparent;
+        animation: pulse 1.5s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+    /* ============================================
+       CHARTS
+       ============================================ */
+    .charts-grid {
+        position: relative;
+        z-index: 2;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        padding: 8px 40px;
+    }
+
+    .chart-card {
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--line);
+        background: var(--panel);
+        padding: 24px;
+    }
+
+    .chart-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+    .chart-card .chart-subtitle { font-size: 12px; color: var(--text-3); margin-bottom: 18px; }
+    .chart-card .chart-wrapper { position: relative; height: 270px; }
+    .chart-card .chart-wrapper canvas { width: 100% !important; height: 100% !important; }
+
+    /* ============================================
+       INSIGHTS CARD (Replaces Entities)
+       ============================================ */
+    .insights-card {
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--line);
+        background: var(--panel);
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .insights-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+    .insights-card .chart-subtitle { font-size: 12px; color: var(--text-3); margin-bottom: 18px; }
+
+    .insight-item {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 14px 16px;
+        border-radius: var(--radius-md);
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid var(--line);
+        margin-bottom: 10px;
+        transition: all var(--ease);
+    }
+    .insight-item:hover { background: var(--card-hover); }
+
+    .insight-item .insight-icon {
+        width: 38px; height: 38px;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 16px;
+        flex-shrink: 0;
+    }
+    .insight-item .insight-icon.green { background: var(--success-bg); color: var(--success); }
+    .insight-item .insight-icon.yellow { background: var(--warning-bg); color: var(--warning); }
+    .insight-item .insight-icon.red { background: var(--error-bg); color: var(--error); }
+    .insight-item .insight-icon.purple { background: var(--mixed-bg); color: var(--mixed); }
+    .insight-item .insight-icon.cyan { background: rgba(56, 189, 248, 0.12); color: var(--cyan); }
+
+    .insight-item .insight-content { flex: 1; }
+    .insight-item .insight-content .insight-label { font-size: 13px; font-weight: 600; color: var(--text-1); }
+    .insight-item .insight-content .insight-value { font-size: 12px; color: var(--text-2); }
+
+    .insight-item .insight-number {
+        font-size: 22px;
+        font-weight: 700;
+        font-family: 'Space Grotesk', sans-serif;
+        color: var(--text-1);
+    }
+
+    .insight-empty {
+        text-align: center;
+        padding: 40px 20px;
+        color: var(--text-3);
+    }
+    .insight-empty i { font-size: 32px; margin-bottom: 12px; opacity: 0.4; color: var(--cyan); }
+    .insight-empty p { font-size: 13px; }
+
+    /* ============================================
+       TABLE
+       ============================================ */
+    .table-card {
+        position: relative;
+        z-index: 2;
+        margin: 8px 40px 40px;
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--line);
+        background: var(--panel);
+        padding: 26px;
+        overflow: hidden;
+    }
+
+    .table-header {
+        display: flex; justify-content: space-between; align-items: center;
+        margin-bottom: 20px; flex-wrap: wrap; gap: 12px;
+    }
+    .table-header h3 { font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .table-header h3 i { color: var(--cyan); }
+
+    .table-controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+    .table-controls input,
+    .table-controls select {
+        padding: 9px 14px;
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--line-strong);
+        background: rgba(255, 255, 255, 0.03);
+        color: var(--text-1);
+        font-family: inherit;
+        font-size: 13px;
+        min-width: 180px;
+        outline: none;
+        transition: border-color var(--ease), box-shadow var(--ease);
+    }
+    .table-controls input::placeholder { color: var(--text-3); }
+    .table-controls input:focus,
+    .table-controls select:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.12); }
+
+    .table-wrapper { overflow-x: auto; }
+
+    .feedback-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .feedback-table th {
+        text-align: left; padding: 12px 14px; font-weight: 700;
+        color: var(--text-3); border-bottom: 1px solid var(--line-strong);
+        white-space: nowrap; text-transform: uppercase; font-size: 11px; letter-spacing: 0.3px;
+    }
+    .feedback-table td { padding: 13px 14px; border-bottom: 1px solid var(--line); color: var(--text-1); vertical-align: middle; }
+    .feedback-table tr:hover td { background: rgba(255, 255, 255, 0.02); }
+
+    .feedback-table .truncate {
+        max-width: 260px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; color: var(--text-2);
+    }
+
+    .sentiment-badge {
+        display: inline-flex; align-items: center; gap: 7px;
+        padding: 4px 13px; border-radius: var(--radius-full);
+        font-size: 11px; font-weight: 700;
+    }
+    .sentiment-badge .dot { width: 7px; height: 7px; border-radius: 50%; }
+    .sentiment-badge.positive { background: var(--success-bg); color: var(--success); }
+    .sentiment-badge.positive .dot { background: var(--success); box-shadow: 0 0 6px var(--success); }
+    .sentiment-badge.neutral { background: var(--warning-bg); color: var(--warning); }
+    .sentiment-badge.neutral .dot { background: var(--warning); box-shadow: 0 0 6px var(--warning); }
+    .sentiment-badge.negative { background: var(--error-bg); color: var(--error); }
+    .sentiment-badge.negative .dot { background: var(--error); box-shadow: 0 0 6px var(--error); }
+    .sentiment-badge.mixed { background: var(--mixed-bg); color: var(--mixed); }
+    .sentiment-badge.mixed .dot { background: var(--mixed); box-shadow: 0 0 6px var(--mixed); }
+
+    .empty-state { text-align: center; padding: 60px 20px; color: var(--text-3); }
+    .empty-state i { font-size: 44px; margin-bottom: 16px; opacity: 0.4; color: var(--cyan); }
+    .empty-state h4 { font-size: 17px; color: var(--text-2); margin-bottom: 8px; font-family: 'Space Grotesk', sans-serif; }
+    .empty-state p { font-size: 13px; }
+
+    /* ============================================
+       TOAST
+       ============================================ */
+    .toast {
+        position: fixed; bottom: 26px; right: 26px; z-index: 999;
+        display: flex; align-items: center; gap: 12px;
+        padding: 15px 22px; border-radius: var(--radius-md);
+        background: var(--panel-solid); border: 1px solid var(--line-strong);
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+        transform: translateY(100px); opacity: 0;
+        transition: all var(--ease); font-size: 13px; font-weight: 500;
+    }
+    .toast.visible { transform: translateY(0); opacity: 1; }
+    .toast.success { border-left: 3px solid var(--success); }
+    .toast.error { border-left: 3px solid var(--error); }
+    .toast.info { border-left: 3px solid var(--blue); }
+    .toast i.status-icon { font-size: 16px; }
+    .toast.success i.status-icon { color: var(--success); }
+    .toast.error i.status-icon { color: var(--error); }
+    .toast.info i.status-icon { color: var(--blue); }
+    .toast .toast-close { background: none; border: none; color: var(--text-3); font-size: 16px; cursor: pointer; margin-left: 4px; }
+
+    /* ============================================
+       RESPONSIVE
+       ============================================ */
+    @media (max-width: 1100px) {
+        .stats-grid { grid-template-columns: repeat(2, 1fr); }
+        .charts-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 700px) {
+        .nav { padding: 20px; }
+        .hero { padding: 32px 20px 8px; }
+        .stats-grid, .charts-grid { padding-left: 20px; padding-right: 20px; }
+        .table-card { margin: 8px 20px 32px; padding: 20px; }
+        .stats-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+        .hero h1 { font-size: 24px; }
+        .feedback-table .truncate { max-width: 120px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+    }
+</style>
+</head>
+
+<body>
+
+<div class="page">
+    <div class="frame">
+        <div class="corner-glow tl"></div>
+        <div class="corner-glow br"></div>
+
+        <!-- NAV -->
+        <nav class="nav">
+            <div class="brand">
+                <span class="mark"><i class="fas fa-chart-pie" aria-hidden="true"></i></span>
+                Group 6 · Analytics
+            </div>
+            <div class="nav-right">
+                <span class="last-updated"><i class="fas fa-clock" aria-hidden="true"></i> Last updated: <span id="lastUpdated">--:--</span></span>
+                <button class="glow-btn" id="refreshBtn" type="button">
+                    <i class="fas fa-circle-notch spinner" aria-hidden="true"></i>
+                    <span class="btn-text"><i class="fas fa-rotate" aria-hidden="true"></i> Refresh</span>
+                </button>
+            </div>
+        </nav>
+
+        <!-- HERO / HEADER -->
+        <header class="hero">
+            <div>
+                <span class="eyebrow"><i class="fas fa-sparkles" aria-hidden="true"></i> Customer voice program</span>
+                <h1>We value <span class="accent">your voice</span></h1>
+                <p>AI-powered sentiment analysis across every response — refreshed automatically as feedback comes in.</p>
+            </div>
+            <div class="header-actions">
+                <button class="ghost-btn" id="exportCSV" type="button"><i class="fas fa-file-csv" aria-hidden="true"></i> <span>Export CSV</span></button>
+                <button class="ghost-btn" id="exportChart" type="button"><i class="fas fa-image" aria-hidden="true"></i> <span>Export Charts</span></button>
+            </div>
+        </header>
+
+        <!-- STATS -->
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card loading">
+                <div class="stat-icon"><i class="fas fa-message" aria-hidden="true"></i></div>
+                <div class="stat-label">Total Feedback</div>
+                <div class="stat-number" style="width:60px;height:32px;">&nbsp;</div>
+            </div>
+            <div class="stat-card loading tone-positive">
+                <div class="stat-icon"><i class="fas fa-face-smile" aria-hidden="true"></i></div>
+                <div class="stat-label">Positive</div>
+                <div class="stat-number" style="width:60px;height:32px;">&nbsp;</div>
+            </div>
+            <div class="stat-card loading tone-neutral">
+                <div class="stat-icon"><i class="fas fa-face-meh" aria-hidden="true"></i></div>
+                <div class="stat-label">Neutral</div>
+                <div class="stat-number" style="width:60px;height:32px;">&nbsp;</div>
+            </div>
+            <div class="stat-card loading tone-negative">
+                <div class="stat-icon"><i class="fas fa-face-frown" aria-hidden="true"></i></div>
+                <div class="stat-label">Negative</div>
+                <div class="stat-number" style="width:60px;height:32px;">&nbsp;</div>
+            </div>
+        </div>
+
+        <!-- CHARTS -->
+        <div class="charts-grid">
+            <div class="chart-card">
+                <h3>Sentiment Distribution</h3>
+                <div class="chart-subtitle">Customer sentiment breakdown</div>
+                <div class="chart-wrapper"><canvas id="sentimentChart"></canvas></div>
+            </div>
+            <!-- ✅ REPLACED: Entities Chart with Insights Card -->
+            <div class="insights-card">
+                <h3>📊 Sentiment Insights</h3>
+                <div class="chart-subtitle">Key metrics at a glance</div>
+                <div id="insightsContainer">
+                    <div class="insight-empty">
+                        <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
+                        <p>Loading insights...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TABLE -->
+        <div class="table-card">
+            <div class="table-header">
+                <h3><i class="fas fa-list-ul" aria-hidden="true"></i>Recent Feedback</h3>
+                <div class="table-controls">
+                    <input type="text" id="searchInput" placeholder="Search feedback..." />
+                    <select id="filterSentiment">
+                        <option value="all">All Sentiment</option>
+                        <option value="POSITIVE">Positive</option>
+                        <option value="NEUTRAL">Neutral</option>
+                        <option value="NEGATIVE">Negative</option>
+                        <option value="MIXED">Mixed</option>
+                    </select>
+                </div>
+            </div>
+            <div class="table-wrapper">
+                <table class="feedback-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Message</th>
+                            <th>Sentiment</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody id="feedbackTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <p style="text-align:center; padding: 0 40px 36px; font-size:12px; color:var(--text-3);">
+            Collecting responses? <a href="#" style="color:var(--cyan); text-decoration:none;">Open the feedback form</a>
+        </p>
+    </div>
+</div>
+
+<div class="toast" id="toast">
+    <i class="fas status-icon" id="toastIcon" aria-hidden="true"></i>
+    <span id="toastMessage">Success!</span>
+    <button class="toast-close" id="toastClose" aria-label="Dismiss">&times;</button>
+</div>
+
+<script>
+(function () {
+    'use strict';
+
+    // ⚠️ UPDATE THIS URL with your API Gateway URL!
+    const API_URL = 'https://3sixpd12p6.execute-api.us-east-1.amazonaws.com/stats';
+    const REFRESH_INTERVAL = 30000;
+
+    const statsGrid = document.getElementById('statsGrid');
+    const feedbackTableBody = document.getElementById('feedbackTableBody');
+    const searchInput = document.getElementById('searchInput');
+    const filterSentiment = document.getElementById('filterSentiment');
+    const refreshBtn = document.getElementById('refreshBtn');
+    const lastUpdated = document.getElementById('lastUpdated');
+    const toast = document.getElementById('toast');
+    const toastIcon = document.getElementById('toastIcon');
+    const toastMessage = document.getElementById('toastMessage');
+    const toastClose = document.getElementById('toastClose');
+    const insightsContainer = document.getElementById('insightsContainer');
+
+    let sentimentChart = null;
+    let allFeedback = [];
+    let toastTimeout;
+
+    function showToast(message, type = 'info') {
+        clearTimeout(toastTimeout);
+        toast.className = `toast ${type}`;
+        toastIcon.className = `fas status-icon ${type === 'success' ? 'fa-circle-check' : type === 'error' ? 'fa-circle-exclamation' : 'fa-circle-info'}`;
+        toastMessage.textContent = message;
+        toast.classList.add('visible');
+        toastTimeout = setTimeout(() => toast.classList.remove('visible'), 4000);
+    }
+
+    toastClose.addEventListener('click', () => {
+        toast.classList.remove('visible');
+        clearTimeout(toastTimeout);
+    });
+
+    function formatDate(dateString) {
+        if (!dateString) return '—';
+        try {
+            const d = new Date(dateString);
+            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        } catch {
+            return dateString;
+        }
+    }
+
+    function getSentimentBadge(sentiment) {
+        const labels = { POSITIVE: 'Positive', NEUTRAL: 'Neutral', NEGATIVE: 'Negative', MIXED: 'Mixed' };
+        const cls = sentiment ? sentiment.toLowerCase() : 'neutral';
+        const label = labels[sentiment] || sentiment || 'Unknown';
+        return `<span class="sentiment-badge ${cls}"><span class="dot"></span>${label}</span>`;
+    }
+
+    function getChartColors() {
+        return {
+            text: '#a9b6cc',
+            grid: 'rgba(148, 163, 184, 0.12)',
+            positive: '#34d399',
+            neutral: '#fbbf24',
+            negative: '#f87171',
+            mixed: '#a78bfa',
+            border: '#0c1430',
+        };
+    }
+
+    function renderCharts(data) {
+        const colors = getChartColors();
+        const ctxSentiment = document.getElementById('sentimentChart').getContext('2d');
+
+        const breakdown = data.sentiment_breakdown || {};
+        const total = data.total || 0;
+        const sentimentData = {
+            labels: ['Positive', 'Neutral', 'Negative', 'Mixed'],
+            values: [breakdown.POSITIVE || 0, breakdown.NEUTRAL || 0, breakdown.NEGATIVE || 0, breakdown.MIXED || 0],
+            colors: [colors.positive, colors.neutral, colors.negative, colors.mixed]
+        };
+
+        const filtered = sentimentData.labels.map((label, i) => ({
+            label, value: sentimentData.values[i], color: sentimentData.colors[i]
+        })).filter(d => d.value > 0);
+
+        if (sentimentChart) sentimentChart.destroy();
+
+        if (filtered.length === 0) {
+            sentimentChart = new Chart(ctxSentiment, {
+                type: 'doughnut',
+                data: {
+                    labels: ['No Data'],
+                    datasets: [{
+                        data: [1],
+                        backgroundColor: ['rgba(148, 163, 184, 0.2)'],
+                        borderColor: colors.border,
+                        borderWidth: 3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { labels: { color: colors.text } },
+                        tooltip: { callbacks: { label: function () { return 'No feedback yet'; } } }
+                    },
+                    cutout: '65%'
+                }
+            });
+            return;
+        }
+
+        sentimentChart = new Chart(ctxSentiment, {
+            type: 'doughnut',
+            data: {
+                labels: filtered.map(d => d.label),
+                datasets: [{
+                    data: filtered.map(d => d.value),
+                    backgroundColor: filtered.map(d => d.color),
+                    borderColor: colors.border,
+                    borderWidth: 3,
+                    hoverOffset: 10
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { color: colors.text, padding: 20, usePointStyle: true, pointStyle: 'circle' } },
+                    tooltip: {
+                        callbacks: {
+                            label: function (context) {
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = total > 0 ? (context.parsed / total * 100).toFixed(1) : 0;
+                                return `${context.label}: ${context.parsed} (${percentage}%)`;
+                            }
+                        }
+                    }
+                },
+                cutout: '65%'
+            }
+        });
+    }
+
+    function renderInsights(data) {
+        const breakdown = data.sentiment_breakdown || {};
+        const total = data.total || 0;
+        const positive = breakdown.POSITIVE || 0;
+        const neutral = breakdown.NEUTRAL || 0;
+        const negative = breakdown.NEGATIVE || 0;
+        const mixed = breakdown.MIXED || 0;
+
+        const positivePct = total > 0 ? (positive / total * 100).toFixed(1) : 0;
+        const neutralPct = total > 0 ? (neutral / total * 100).toFixed(1) : 0;
+        const negativePct = total > 0 ? (negative / total * 100).toFixed(1) : 0;
+
+        // Determine overall sentiment
+        let overall = 'neutral';
+        let overallEmoji = '😐';
+        let overallMsg = 'Mixed feedback - room for improvement';
+        if (total === 0) {
+            overall = 'empty';
+            overallEmoji = '📭';
+            overallMsg = 'No feedback yet';
+        } else if (positive > negative && positive > neutral) {
+            overall = 'positive';
+            overallEmoji = '🌟';
+            overallMsg = 'Customers are happy!';
+        } else if (negative > positive && negative > neutral) {
+            overall = 'negative';
+            overallEmoji = '⚠️';
+            overallMsg = 'Needs attention - focus on improvements';
+        } else if (neutral >= positive && neutral >= negative && total > 0) {
+            overall = 'neutral';
+            overallEmoji = '📊';
+            overallMsg = 'Neutral feedback - opportunities for delight';
+        }
+
+        insightsContainer.innerHTML = `
+            <div class="insight-item">
+                <div class="insight-icon ${overall === 'positive' ? 'green' : overall === 'negative' ? 'red' : overall === 'empty' ? 'cyan' : 'yellow'}">
+                    <i class="fas ${overall === 'positive' ? 'fa-face-smile' : overall === 'negative' ? 'fa-face-frown' : overall === 'empty' ? 'fa-inbox' : 'fa-face-meh'}"></i>
+                </div>
+                <div class="insight-content">
+                    <div class="insight-label">${overallEmoji} Overall Sentiment</div>
+                    <div class="insight-value">${overallMsg}</div>
+                </div>
+                <div class="insight-number">${total}</div>
+            </div>
+            <div class="insight-item">
+                <div class="insight-icon green"><i class="fas fa-arrow-up"></i></div>
+                <div class="insight-content">
+                    <div class="insight-label">Positive</div>
+                    <div class="insight-value">${positive} responses</div>
+                </div>
+                <div class="insight-number">${positivePct}%</div>
+            </div>
+            <div class="insight-item">
+                <div class="insight-icon yellow"><i class="fas fa-minus"></i></div>
+                <div class="insight-content">
+                    <div class="insight-label">Neutral</div>
+                    <div class="insight-value">${neutral} responses</div>
+                </div>
+                <div class="insight-number">${neutralPct}%</div>
+            </div>
+            <div class="insight-item">
+                <div class="insight-icon red"><i class="fas fa-arrow-down"></i></div>
+                <div class="insight-content">
+                    <div class="insight-label">Negative</div>
+                    <div class="insight-value">${negative} responses</div>
+                </div>
+                <div class="insight-number">${negativePct}%</div>
+            </div>
+            ${mixed > 0 ? `
+            <div class="insight-item">
+                <div class="insight-icon purple"><i class="fas fa-arrows-left-right"></i></div>
+                <div class="insight-content">
+                    <div class="insight-label">Mixed</div>
+                    <div class="insight-value">${mixed} responses</div>
+                </div>
+                <div class="insight-number">${total > 0 ? (mixed / total * 100).toFixed(1) : 0}%</div>
+            </div>` : ''}
+        `;
+    }
+
+    function renderStats(data) {
+        const breakdown = data.sentiment_breakdown || {};
+        const total = data.total || 0;
+        const positive = breakdown.POSITIVE || 0;
+        const neutral = breakdown.NEUTRAL || 0;
+        const negative = breakdown.NEGATIVE || 0;
+
+        statsGrid.innerHTML = `
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-message" aria-hidden="true"></i></div>
+                <div class="stat-label">Total Feedback</div>
+                <div class="stat-number">${total}</div>
+                <span class="stat-change neutral"><i class="fas fa-database" aria-hidden="true"></i> ${total > 0 ? 'All responses' : 'No data yet'}</span>
+            </div>
+            <div class="stat-card tone-positive">
+                <div class="stat-icon"><i class="fas fa-face-smile" aria-hidden="true"></i></div>
+                <div class="stat-label">Positive</div>
+                <div class="stat-number">${positive}</div>
+                <span class="stat-change positive"><i class="fas fa-arrow-up" aria-hidden="true"></i> ${total > 0 ? (positive / total * 100).toFixed(1) : 0}%</span>
+            </div>
+            <div class="stat-card tone-neutral">
+                <div class="stat-icon"><i class="fas fa-face-meh" aria-hidden="true"></i></div>
+                <div class="stat-label">Neutral</div>
+                <div class="stat-number">${neutral}</div>
+                <span class="stat-change neutral"><i class="fas fa-minus" aria-hidden="true"></i> ${total > 0 ? (neutral / total * 100).toFixed(1) : 0}%</span>
+            </div>
+            <div class="stat-card tone-negative">
+                <div class="stat-icon"><i class="fas fa-face-frown" aria-hidden="true"></i></div>
+                <div class="stat-label">Negative</div>
+                <div class="stat-number">${negative}</div>
+                <span class="stat-change negative"><i class="fas fa-arrow-down" aria-hidden="true"></i> ${total > 0 ? (negative / total * 100).toFixed(1) : 0}%</span>
+            </div>
+        `;
+    }
+
+    function renderTable(feedback) {
+        if (!feedback || feedback.length === 0) {
+            feedbackTableBody.innerHTML = `
+                <tr><td colspan="4">
+                    <div class="empty-state">
+                        <i class="fas fa-inbox" aria-hidden="true"></i>
+                        <h4>No feedback yet</h4>
+                        <p>Submit some feedback through the form to see it here.</p>
+                    </div>
+                </td></tr>`;
+            return;
+        }
+
+        feedbackTableBody.innerHTML = feedback.map(item => `
+            <tr>
+                <td><strong>${item.name || 'Anonymous'}</strong></td>
+                <td><span class="truncate" title="${item.message || ''}">${item.message || '—'}</span></td>
+                <td>${getSentimentBadge(item.sentiment || 'NEUTRAL')}</td>
+                <td style="font-size:12px;color:var(--text-3);white-space:nowrap;">${formatDate(item.submitted_at)}</td>
+            </tr>
+        `).join('');
+    }
+
+    function filterFeedback() {
+        const search = searchInput.value.toLowerCase().trim();
+        const sentiment = filterSentiment.value;
+        let filtered = allFeedback;
+
+        if (sentiment !== 'all') filtered = filtered.filter(item => item.sentiment === sentiment);
+        if (search) {
+            filtered = filtered.filter(item =>
+                (item.name || '').toLowerCase().includes(search) ||
+                (item.message || '').toLowerCase().includes(search) ||
+                (item.email || '').toLowerCase().includes(search)
+            );
+        }
+        renderTable(filtered);
+    }
+
+    searchInput.addEventListener('input', filterFeedback);
+    filterSentiment.addEventListener('change', filterFeedback);
+
+    async function fetchData(silent = false) {
+        if (!silent) refreshBtn.classList.add('loading');
+
+        try {
+            const response = await fetch(API_URL);
+            if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+
+            const data = await response.json();
+            allFeedback = data.recent || [];
+
+            renderStats(data);
+            renderCharts(data);
+            renderInsights(data);
+            renderTable(allFeedback);
+
+            const now = new Date();
+            lastUpdated.textContent = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+            if (!silent) showToast('Dashboard updated successfully!', 'success');
+
+        } catch (error) {
+            console.error('Error fetching data:', error);
+            if (!silent) showToast(`Error: ${error.message}`, 'error');
+
+            feedbackTableBody.innerHTML = `
+                <tr><td colspan="4">
+                    <div class="empty-state">
+                        <i class="fas fa-triangle-exclamation" aria-hidden="true" style="color:var(--error);"></i>
+                        <h4>Error loading data</h4>
+                        <p>${error.message}</p>
+                        <p style="font-size:12px;margin-top:8px;color:var(--text-3);">Check your API URL and make sure the backend is running.</p>
+                    </div>
+                </td></tr>`;
+        } finally {
+            refreshBtn.classList.remove('loading');
+        }
+    }
+
+    document.getElementById('exportCSV').addEventListener('click', () => {
+        if (!allFeedback || allFeedback.length === 0) { showToast('No data to export', 'error'); return; }
+
+        const headers = ['Name', 'Email', 'Message', 'Sentiment', 'Date'];
+        const rows = allFeedback.map(item => [
+            item.name || 'Anonymous',
+            item.email || '',
+            (item.message || '').replace(/,/g, ' '),
+            item.sentiment || 'NEUTRAL',
+            formatDate(item.submitted_at)
+        ]);
+
+        let csv = headers.join(',') + '\n';
+        rows.forEach(row => { csv += row.join(',') + '\n'; });
+
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `feedback_${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+
+        showToast('CSV exported successfully!', 'success');
+    });
+
+    document.getElementById('exportChart').addEventListener('click', () => {
+        const canvas = document.querySelector('canvas');
+        if (!canvas) { showToast('No charts to export', 'error'); return; }
+        const link = document.createElement('a');
+        link.download = `dashboard_charts_${new Date().toISOString().slice(0, 10)}.png`;
+        link.href = canvas.parentElement.parentElement.parentElement.querySelector('canvas').toDataURL('image/png');
+        link.click();
+        showToast('Chart exported successfully!', 'success');
+    });
+
+    refreshBtn.addEventListener('click', () => fetchData(false));
+
+    fetchData(true);
+    setInterval(() => fetchData(true), REFRESH_INTERVAL);
+
+    console.log('%cWe Value Your Voice · Group 6 Analytics', 'font-size:16px;font-weight:bold;color:#38bdf8;');
+    console.log('%cEntities removed - clean dashboard!', 'font-size:12px;color:#34d399;');
+})();
+</script>
+
+</body>
+</html>
